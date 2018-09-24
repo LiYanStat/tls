@@ -1,15 +1,15 @@
 Package: tls
 Title: Tools of Total Least Squares in Error-in-variables Models
-Version: 0.1.1
-Date: 2018-05-28
+Version: 0.1.0
+Date: 2018-09-24
 Authors@R: c(
     person(given = "Yan", family = "Li",
            email = "yan.4.li@uconn.edu",
            role = c("aut", "cre")),
     person(given = "Kun", family = "Chen", role = "aut"),
     person(given = "Jun", family = "Yan", role = "aut"))
-Description: Conduct point and interval estimation for error-in-variables model
-	     via total least squares or generalized total least squares method.
+Description: Functions for point and interval estimation in error-in-variables
+	     models via total least squares or generalized total least squares method.
 Depends:
     R (>= 3.2.3)
 Imports:

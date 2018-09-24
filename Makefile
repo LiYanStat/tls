@@ -1,9 +1,10 @@
 objects := $(wildcard R/*.R) DESCRIPTION
-dir := $(shell pwd)
 version := $(shell grep "Version" DESCRIPTION | sed "s/Version: //")
 pkg := $(shell grep "Package" DESCRIPTION | sed "s/Package: //")
 tar := $(pkg)_$(version).tar.gz
 checkLog := $(pkg).Rcheck/00check.log
+yr := $(shell date +"%Y")
+dt := $(shell date +"%Y-%m-%d")
 
 .PHONY: check
 check: $(checkLog)
@@ -12,8 +13,9 @@ check: $(checkLog)
 build: $(tar)
 
 $(tar): $(objects)
+	@make -s updateDate
 	Rscript -e "library(methods); devtools::document();";
-	R CMD build $(dir)
+	R CMD build .
 
 $(checkLog): $(tar)
 	R CMD check --as-cran $(tar)
@@ -25,8 +27,15 @@ install: $(tar)
 ## update copyright year in HEADER, R script and date in DESCRIPTION
 .PHONY: updateDate
 updateDate:
-	dt=$$(date +"%Y-%m-%d");\
-	sed -i "s/Date: [0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}/Date: $$dt/" DESCRIPTION;
+	@echo "updating Date: $(dt)"
+	@sed -i '' 's/Date: [0-9]\{4\}-[0-9]\{1,2\}-[0-9]\{1,2\}/Date: $(dt)/' DESCRIPTION
+	@sed -i '' 's/Copyright (C) 2018-[0-9]\{4\}/Copyright (C) 2018-$(yr)/' COPYRIGHT
+
+## update version number
+.PHONY: newVersion
+newVersion:
+	@read -p "new version number: " NEWVER;\
+	sed -i '' 's/^Version: [0-9]\.[0-9]\.[0-9]\.*[0-9]*[0-9]*[0-9]*[0-9]*/Version: '$$NEWVER'/' DESCRIPTION;\
 
 .PHONY: clean
 clean:
