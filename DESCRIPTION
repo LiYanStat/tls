@@ -13,7 +13,7 @@ Description: Functions for point and interval estimation in error-in-variables
 Depends:
     R (>= 3.2.3)
 Imports:
-    MASS, stats, utils, methods
+    stats, utils
 License: GPL (>= 3)
 URL: https://github.com/LiYanStat/tls
 BugReports: https://github.com/LiYanStat/tls/issues

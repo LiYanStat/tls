@@ -1,14 +1,45 @@
-##' Total least squares for error-in-variables models.
+################################################################################
+##
+##   R package tls by Yan Li, Kun Chen and Jun Yan
+##   Copyright (C) 2018-2018
+##
+##   This file is part of the R package tls.
+##
+##   The R package tls is free software: You can redistribute it and/or
+##   modify it under the terms of the GNU General Public License as published
+##   by the Free Software Foundation, either version 3 of the License, or
+##   any later version (at your option). See the GNU General Public License
+##   at <http://www.gnu.org/licenses/> for details.
+##
+##   The R package tls is distributed in the hope that it will be useful,
+##   but WITHOUT ANY WARRANTY without even the implied warranty of
+##   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+##
+################################################################################
+
+##' Fitting error-in-variables models via total least squares.
 ##'
-##' This function estimates the coefficients and confidence intervals for
-##' error-in-variables via total least squares.
+##' It can be used to carry out regression models that account for
+##' measurement errors in the independent variables.
 ##'
-##' @param X predictors, n*p matrix.
-##' @param Y response, n*1 vector.
-##' @param conf.level confidence level for confidence interval.
-##' @return a list of the fitted model including point estimate and
-##' interval estimate of coefficients and corresponding estimate of
-##' standard error.
+##' This function should be used with care. Confidence interval estimation
+##' is given by normal approximation or bootstrap. The normal approximation and
+##' bootstrap are proper when all the error terms are independent from normal
+##' distribution with zero mean and equal variance (see the references for
+##' more details).
+##'
+##' @param formula an object of class "formula" (or one that can be
+##'     coerced to that class): a symbolic description of the model to
+##'     be fitted.
+##' @param data an optional data frame, list or environment (or object
+##'     coercible by as.data.frame to a data frame) containing the
+##'     variables in the model.
+##' @param method method for computing confidence interval
+##' @param conf.level the confidence level for confidence interval.
+##' @param ... Optional arguments for future usage.
+##' @return \code{tls} returns parameters of the fitted model including
+##'     estimations of coefficient, corresponding estimated standard errors
+##'     and confidence intervals.
 ##' @author Yan Li
 ##' @references \itemize{
 ##' \item  Gleser, Estimation in a Multivariate "Errors in Variables"
@@ -17,28 +48,61 @@
 ##' 1980, SIAM J. Numer. Anal.
 ##' \item Pesta, Total least squares and bootstrapping with
 ##' applications in calibration, 2012, Statistics.}
-##' @details This function should be used with care. Confidence interval estimation
-##' is given by normal approximation or bootstrap. The normal approximation and
-##' bootstrap are proper when all the error terms are independent from normal
-##' distribution with zero mean and equal variance (see the references for
-##' more details).
 ##' @examples
 ##' library(tls)
-##' library(MASS)
 ##' set.seed(100)
 ##' X.1 <- sqrt(1:100)
-##' X.tilde.1 <- mvrnorm(mu = X.1, Sigma = diag(length(X.1)) * 2)
+##' X.tilde.1 <- rnorm(100) + X.1
 ##' X.2 <- sample(X.1, size = length(X.1), replace = FALSE)
-##' X.tilde.2 <- mvrnorm(mu = X.2, Sigma = diag(length(X.2)) * 2)
-##' Y <- mvrnorm(mu = X.1 + X.2, Sigma = diag(length(X.1)) * 2)
-##' X.tilde <- cbind(X.tilde.1, X.tilde.2)
-##' tls(X.tilde, Y)
-##' @import MASS stats utils methods
+##' X.tilde.2 <- rnorm(100) + X.2
+##' Y <- rnorm(100) + X.1 + X.2
+##' data <- data.frame(Y = Y, X.1 = X.tilde.1, X.2 = X.tilde.2)
+##' tls(Y ~ X.1 + X.2 - 1, data = data)
+##' @import stats
+##' @importFrom utils tail
 ##' @export tls
-tls <- function(X, Y, conf.level = 0.95) {
-  X <- as.matrix(X)
-  Y <- as.matrix(Y)
-  output <- tlsLm(X, Y, conf.level)
+tls <- function(formula, data, method = c("normal", "bootstrap"),
+                conf.level = 0.95, ...) {
+  ## check whether formula is "formula"
+  if (!("formula" %in% class(formula))) {
+    formula <- as.formula(formula)
+  }
+  ## check the method for confidence interval
+  method <- match.arg(method)
+  if (! method %in% c("normal", "bootstrap")) {
+    stop("Unknown method for computing confidence interval.")
+  }
+  ## check the confidence level
+  if (conf.level >= 1 | conf.level <= 0) {
+    stop("Confidence level should between 0 and 1.")
+  }
+  ## extract model
+  model <- terms(formula)
+  ## check intercept
+  intercept <- attr(model, "intercept")
+  if (intercept) {
+    stop("Using total least squares requires model without intercept.")
+  }
+  ## check intercept
+  if (all(attr(model, "order") != 1)) {
+    stop("Using total least squares requires model without interactions.")
+  }
+  ## extract covariates
+  covars <- as.character(attr(model, "term.labels"))
+  ## extract repsonse
+  if (attr(model, "response") == 1) {
+    response <- as.character(attr(model, "variables"))[[2]]
+  } else {
+    stop("Cannot extract response from formula, please provide response.")
+  }
+  if(all(c(response, covars) %in% colnames(data))) {
+    X <- as.matrix(data[, covars])
+    Y <- as.matrix(data[, response])
+  } else {
+    stop("Cannot extract variables from data, please check data colnames.")
+  }
+
+  output <- tlsLm(X, Y, method, conf.level)
   beta.hat <- output$beta.hat
   ci.estim <- output$ci
   sd.estim <- output$sd
@@ -47,8 +111,9 @@ tls <- function(X, Y, conf.level = 0.95) {
   names(beta.hat) <- colnames(X)
   ## confidence interval
   rownames(ci.estim) <- colnames(X)
-  colnames(ci.estim) <- c("Boot lower bound", "Boot upper bound",
-                          "Norm lower bound", "Norm upper bound")
+
+  colnames(ci.estim) <- c(paste0(50 - conf.level * 50 , "% lower bound"),
+                          paste0(conf.level * 50 + 50, "% upper bound"))
   ## result
   result <- list(coefficient = beta.hat,
                  confidence.interval = ci.estim,
@@ -57,7 +122,7 @@ tls <- function(X, Y, conf.level = 0.95) {
 }
 
 ## estimate via Total least square approach
-tlsLm <- function(X, Y, conf.level) {
+tlsLm <- function(X, Y, method, conf.level) {
   ## input:
   ##   X: n*p matrix, including p predictors
   ##   Y: n*1 matrix, the observations
@@ -92,46 +157,49 @@ tlsLm <- function(X, Y, conf.level) {
   tmp.res <- Estls(X, Y)
   beta.hat <- tmp.res$beta.hat
   var.hat <- tmp.res$Var.hat
-  ## standard deviation from normal approximation
-  sd.norm <- sqrt(diag(var.hat))
-  ## compute z value
-  z <- qnorm(0.5 + conf.level / 2)
-  ## confidence interval from asymptotic normal distribution
-  ci.norm <- cbind(beta.hat - z * sd.norm,
-                   beta.hat + z * sd.norm)
-  ## nonparamatric bootstrap
-  B <- 1000
-  for(i in 1:1000) {
-    beta.s <- tryCatch({
-      resample <- sapply(1:B,
-                         function(x) {
-                           sample(1:n, size = n, replace = TRUE)
-                         })
-      beta.s <- apply(resample, 2,
-                      function(x) {
-                        Xs <- X[x, ]
-                        Ys <- Y[x, ]
-                        Estls(Xs, Ys)$beta.hat
-                      })
-      if(ncol(X) == 1) {
-        matrix(beta.s, ncol = 1000)
-      } else {
-        beta.s
-      }
-    }, error = function(e) {
-      as.matrix(c(0, 0))
-    })
-    if (ncol(beta.s) == B) {
-      break
-    }
-  }
 
-  alpha <- 1 - conf.level
-
-  ci.ordboot <- t(apply(beta.s, 1,
+  if (method == "normal") {
+    ## standard deviation from normal approximation
+    sd <- sqrt(diag(var.hat))
+    ## compute z value
+    z <- qnorm(0.5 + conf.level / 2)
+    ## confidence interval from asymptotic normal distribution
+    ci <- cbind(beta.hat - z * sd,
+                     beta.hat + z * sd)
+  } else {
+    ## nonparamatric bootstrap
+    B <- 5000
+    for(i in 1:1000) {
+      beta.s <- tryCatch({
+        resample <- sapply(1:B,
+                           function(x) {
+                             sample(1:n, size = n, replace = TRUE)
+                           })
+        beta.s <- apply(resample, 2,
                         function(x) {
-                          quantile(x, c(alpha / 2, alpha / 2 + conf.level))
-                        }))
+                          Xs <- X[x, ]
+                          Ys <- Y[x, ]
+                          Estls(Xs, Ys)$beta.hat
+                        })
+        if(ncol(X) == 1) {
+          matrix(beta.s, ncol = B)
+        } else {
+          beta.s
+        }
+      }, error = function(e) {
+        as.matrix(c(0, 0))
+      })
+      if (ncol(beta.s) == B) {
+        break
+      }
+    }
 
-  list(beta.hat = beta.hat, ci = cbind(ci.ordboot, ci.norm), sd = sd.norm)
+    alpha <- 1 - conf.level
+    sd <- t(apply(beta.s, 1, sd))
+    ci <- t(apply(beta.s, 1,
+                  function(x) {
+                    quantile(x, c(alpha / 2, alpha / 2 + conf.level))
+                  }))
+  }
+  list(beta.hat = beta.hat, ci = ci, sd = sd)
 }

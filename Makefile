@@ -24,9 +24,16 @@ $(checkLog): $(tar)
 install: $(tar)
 	R CMD INSTALL $(tar)
 
-## update copyright year in HEADER, R script and date in DESCRIPTION
+## update copyright year in COPYRIGHT, R script and date in DESCRIPTION
 .PHONY: updateDate
 updateDate:
+	@for Rfile in R/*.R; do \
+	if ! grep -q 'Copyright (C)' $$Rfile;\
+	then cat COPYRIGHT $$Rfile  > tmp;\
+	mv tmp $$Rfile;\
+	fi;\
+	sed -i '' 's/Copyright (C) 2018-[0-9]*/Copyright (C) 2018-$(yr)/' $$Rfile;\
+	done;
 	@echo "updating Date: $(dt)"
 	@sed -i '' 's/Date: [0-9]\{4\}-[0-9]\{1,2\}-[0-9]\{1,2\}/Date: $(dt)/' DESCRIPTION
 	@sed -i '' 's/Copyright (C) 2018-[0-9]\{4\}/Copyright (C) 2018-$(yr)/' COPYRIGHT

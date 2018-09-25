@@ -1,11 +1,11 @@
 ################################################################################
 ##
-##   R package coga by Yan Li, Kun Chen and Jun Yan
+##   R package tls by Yan Li, Kun Chen and Jun Yan
 ##   Copyright (C) 2018-2018
 ##
 ##   This file is part of the R package tls.
 ##
-##   The R package coga is free software: You can redistribute it and/or
+##   The R package tls is free software: You can redistribute it and/or
 ##   modify it under the terms of the GNU General Public License as published
 ##   by the Free Software Foundation, either version 3 of the License, or
 ##   any later version (at your option). See the GNU General Public License
